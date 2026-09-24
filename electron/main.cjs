@@ -1,5 +1,11 @@
 // Desktop shell (macOS + Windows). Serves the Vite build from a private app:// origin so fetch(),
 // GLB loading and localStorage saves all work exactly as on the web, fully offline.
+// Started with plain Node (e.g. a web host running `node electron/main.cjs`)? Serve the web build instead.
+if (!process.versions.electron) {
+  import('../server.js');
+  return;
+}
+
 const { app, BrowserWindow, Menu, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');

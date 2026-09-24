@@ -5,6 +5,7 @@
   "type": "module",
   "description": "ANGKOR: Legacy of the Khmer Empire - a third-person exploration game set at Angkor Wat",
   "scripts": {
+    "start": "node server.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -98,5 +99,8 @@
     "portable": {
       "artifactName": "Angkor-Portable-${version}-win-${arch}.${ext}"
     }
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

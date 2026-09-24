@@ -1,0 +1,11 @@
+# Render Blueprint. The game is a static website once built; the Static Site option is the
+# fastest and cheapest (served from Render's CDN). The web service below also works.
+services:
+  - type: web
+    name: angkor-static
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: ELECTRON_SKIP_BINARY_DOWNLOAD
+        value: "1"
