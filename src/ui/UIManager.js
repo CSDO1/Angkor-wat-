@@ -111,7 +111,6 @@ export class UIManager {
         platform.desktop ? btn('title.quit', () => platform.quit()) : null,
       ]);
       this.titleEl.append(
-        el('div', { class: 'top-right' }, [this.langSwitch(render)]),
         el('div', { class: 'title-main' }, [
           el('h1', {}, ['ANGKOR', el('span', { class: 'km', text: 'អង្គរ · កេរដំណែលនៃចក្រភពខ្មែរ' })]),
           g.i18n.lang === 'km' ? null : el('h2', { text: t('game.subtitle') }),

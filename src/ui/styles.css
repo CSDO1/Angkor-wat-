@@ -280,7 +280,6 @@ body.lang-km .loading .tip b { letter-spacing: 0; text-transform: none; font-siz
 
 /* title */
 .title-screen { background: linear-gradient(90deg, rgba(8,6,4,.85) 0%, rgba(8,6,4,.45) 42%, transparent 68%), linear-gradient(0deg, rgba(8,6,4,.6), transparent 30%); }
-.title-screen .top-right { position: absolute; top: 22px; right: 26px; }
 .title-screen .title-main { animation: rise 1.2s ease both; }
 .title-screen h2 { margin-bottom: 14px; }
 .title-screen .buttons .btn { padding: 11px 22px; }
@@ -335,7 +334,6 @@ select { border-radius: 2px; cursor: pointer; }
 @media (max-width: 720px) {
   .menu { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .menu nav .nav-foot { margin-top: 0; padding-top: 0; flex-direction: row; align-items: center; width: 100%; }
-  .title-screen .top-right { top: 12px; right: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
