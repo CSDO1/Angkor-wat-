@@ -60,7 +60,6 @@ export class MenuUI {
         })),
       this.fromTitle ? el('button', { text: this.t('settings.back'), onclick: () => g.closeMenu() }) : null,
       el('div', { class: 'nav-foot' }, [
-        g.ui.langSwitch(() => this.render()),
         el('div', { class: 'esc ui-text', text: this.t('menu.back') }),
       ]),
     ]);

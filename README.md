@@ -35,8 +35,8 @@ In the app, F11 toggles fullscreen (on macOS, ⌃⌘F also works). The title scr
 ## Languages
 
 English and Khmer (ខ្មែរ). On first launch the player picks a language. After that they can switch
-with the EN | ខ្មែរ control at the top of Settings, in the pause-menu sidebar,
-or on the Language tab. Fonts (Marcellus, Source Sans 3, Noto Sans/Serif Khmer) are bundled, so
+with the EN | ខ្មែរ control at the top of Settings, or on the
+Language tab. Fonts (Marcellus, Source Sans 3, Noto Sans/Serif Khmer) are bundled, so
 Khmer renders correctly offline.
 
 ## Source model
