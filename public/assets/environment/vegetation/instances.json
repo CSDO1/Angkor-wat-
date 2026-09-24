@@ -1,0 +1,162 @@
+{
+ "stride": 5,
+ "fields": [
+  "x",
+  "y",
+  "z",
+  "yaw",
+  "scale"
+ ],
+ "sets": {
+  "Baluster_Source": {
+   "offset": 0,
+   "count": 1320,
+   "height": 1.600000023841858,
+   "radius": 0.09000000357627869
+  },
+  "Bush_A": {
+   "offset": 26400,
+   "count": 2,
+   "height": 1.2492833137512207,
+   "radius": 0.9396489262580872
+  },
+  "Bush_B": {
+   "offset": 26440,
+   "count": 3,
+   "height": 1.2657380104064941,
+   "radius": 1.1093783378601074
+  },
+  "Bush_C": {
+   "offset": 26500,
+   "count": 12,
+   "height": 1.2271140813827515,
+   "radius": 1.0255929231643677
+  },
+  "Fern_A": {
+   "offset": 26740,
+   "count": 12,
+   "height": 0.22505192458629608,
+   "radius": 0.6307263374328613
+  },
+  "Fern_B": {
+   "offset": 26980,
+   "count": 7,
+   "height": 0.18348823487758636,
+   "radius": 0.7179977893829346
+  },
+  "Fern_C": {
+   "offset": 27120,
+   "count": 6,
+   "height": 0.1903875321149826,
+   "radius": 0.5659030079841614
+  },
+  "Grass_Clump_A": {
+   "offset": 27240,
+   "count": 23520,
+   "height": 0.6449236273765564,
+   "radius": 0.18526694178581238
+  },
+  "Grass_Clump_B": {
+   "offset": 497640,
+   "count": 23931,
+   "height": 0.6382163763046265,
+   "radius": 0.14748679101467133
+  },
+  "Grass_Clump_C": {
+   "offset": 976260,
+   "count": 23395,
+   "height": 0.6265461444854736,
+   "radius": 0.14733900129795074
+  },
+  "Lotus_Flower_A": {
+   "offset": 1444160,
+   "count": 267,
+   "height": 0.7927649617195129,
+   "radius": 0.8406122922897339
+  },
+  "Lotus_Flower_B": {
+   "offset": 1449500,
+   "count": 275,
+   "height": 0.7927649617195129,
+   "radius": 0.9103450775146484
+  },
+  "Lotus_Pads_A": {
+   "offset": 1455000,
+   "count": 280,
+   "height": 0.25695085525512695,
+   "radius": 0.5651558041572571
+  },
+  "Lotus_Pads_B": {
+   "offset": 1460600,
+   "count": 274,
+   "height": 0.04999999701976776,
+   "radius": 0.979069173336029
+  },
+  "Palm_Coconut_A": {
+   "offset": 1466080,
+   "count": 48,
+   "height": 12.47373104095459,
+   "radius": 4.434384346008301
+  },
+  "Palm_Coconut_B": {
+   "offset": 1467040,
+   "count": 47,
+   "height": 15.031830787658691,
+   "radius": 4.382045269012451
+  },
+  "Palm_Sugar_A": {
+   "offset": 1467980,
+   "count": 42,
+   "height": 16.8499755859375,
+   "radius": 3.350550651550293
+  },
+  "Palm_Sugar_B": {
+   "offset": 1468820,
+   "count": 42,
+   "height": 19.182600021362305,
+   "radius": 3.026700258255005
+  },
+  "Palm_Sugar_C": {
+   "offset": 1469660,
+   "count": 57,
+   "height": 21.784366607666016,
+   "radius": 3.165766716003418
+  },
+  "Tree_Broadleaf_A_LOD0": {
+   "offset": 1470800,
+   "count": 59,
+   "height": 12.972029685974121,
+   "radius": 5.436557769775391
+  },
+  "Tree_Broadleaf_A_LOD1": {
+   "offset": 1471980,
+   "count": 11855,
+   "height": 13.771574020385742,
+   "radius": 4.24887752532959
+  },
+  "Tree_Broadleaf_B_LOD0": {
+   "offset": 1709080,
+   "count": 75,
+   "height": 12.750503540039062,
+   "radius": 6.077009677886963
+  },
+  "Tree_Broadleaf_B_LOD1": {
+   "offset": 1710580,
+   "count": 11938,
+   "height": 13.816657066345215,
+   "radius": 5.293460845947266
+  },
+  "Tree_Broadleaf_C_LOD0": {
+   "offset": 1949340,
+   "count": 57,
+   "height": 14.298051834106445,
+   "radius": 5.10612154006958
+  },
+  "Tree_Broadleaf_C_LOD1": {
+   "offset": 1950480,
+   "count": 11870,
+   "height": 14.180521965026855,
+   "radius": 4.79914665222168
+  }
+ }
+}

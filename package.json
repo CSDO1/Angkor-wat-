@@ -1,0 +1,102 @@
+{
+  "name": "angkor-legacy-of-the-khmer-empire",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ANGKOR: Legacy of the Khmer Empire - a third-person exploration game set at Angkor Wat",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "desktop": "vite build && electron .",
+    "dist:mac": "vite build && electron-builder --mac --arm64 --x64",
+    "dist:win": "vite build && electron-builder --win --x64",
+    "dist": "vite build && electron-builder --mac --arm64 --x64 && electron-builder --win --x64",
+    "export-assets": "blender -b ../angkor_wat.blend -P tools/blender/export_angkor.py"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@fontsource/marcellus": "^5.3.0",
+    "@fontsource/noto-sans-khmer": "^5.3.0",
+    "@fontsource/noto-serif-khmer": "^5.3.0",
+    "@fontsource/source-sans-3": "^5.3.0",
+    "three": "^0.186.0",
+    "three-mesh-bvh": "^0.9.15",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "vite": "^8.3.0"
+  },
+  "main": "electron/main.cjs",
+  "author": "Angkor Game",
+  "build": {
+    "appId": "com.angkorgame.legacy",
+    "productName": "Angkor",
+    "copyright": "ANGKOR: Legacy of the Khmer Empire",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "artifactName": "Angkor-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.adventure-games",
+      "icon": "build/icon.png",
+      "identity": null,
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "title": "Angkor ${version}",
+      "contents": [
+        {
+          "x": 150,
+          "y": 190
+        },
+        {
+          "x": 410,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Angkor",
+      "artifactName": "Angkor-Setup-${version}-win-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Angkor-Portable-${version}-win-${arch}.${ext}"
+    }
+  }
+}
