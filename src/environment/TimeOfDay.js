@@ -172,7 +172,7 @@ export class TimeOfDay {
     this.hemi.intensity = c.hemiI;
     this.scene.fog.color.setRGB(...c.fog);
     this.scene.fog.density = c.fogD;
-    this.renderer.toneMappingExposure = c.exposure;
+    this.renderer.toneMappingExposure = c.exposure * (this.brightness ?? 1);
     AtmosphereUniforms.uSunDir.value.copy(sunDir);
     AtmosphereUniforms.uSunFogColor.value.setRGB(...c.sunFog);
     AtmosphereUniforms.uMistDensity.value = c.mist * (this.mistScale ?? 1);

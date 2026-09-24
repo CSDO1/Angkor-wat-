@@ -18,9 +18,12 @@ export class HUD {
     this.banner = this._banner.bind(this);
     this.bannerEl = el('div', { class: 'hud-banner' }, [el('div', { class: 'small' }), el('div', { class: 'big' })]);
     this.toasts = el('div', { class: 'hud-toasts' });
-    this.compass = el('div', { class: 'hud-compass' }, [el('div', { class: 'strip' })]);
+    this.compass = el('div', { class: 'hud-compass' }, [el('div', { class: 'strip' }), el('i', { class: 'wp hidden' })]);
+    this.wpLabel = el('div', { class: 'hud-wp hidden' });
+    this.discEl = el('div', { class: 'hud-discovery' }, [el('div', { class: 'kicker' }), el('div', { class: 'name' }), el('div', { class: 'kname' }), el('div', { class: 'foot' })]);
+    this.savingEl = el('div', { class: 'hud-saving' }, [el('i'), el('span')]);
     this.markers = el('div', { class: 'world-markers' });
-    this.root.append(this.markers, this.obj, this.art, this.fps, this.compass, this.prompt, this.hint, this.bannerEl, this.toasts);
+    this.root.append(this.markers, this.obj, this.art, this.fps, this.compass, this.wpLabel, this.prompt, this.hint, this.bannerEl, this.discEl, this.toasts, this.savingEl);
     root.append(this.root);
     this._buildCompass();
     this.hintTimer = 0;
@@ -36,7 +39,9 @@ export class HUD {
     e.on('interact-focus', (f) => this.setPrompt(f));
     e.on('hint', ({ key, text, time }) => this.showHint(text ?? game.i18n.t(key), time));
     e.on('saved', ({ slot }) => slot === 'manual' && this.toast(game.i18n.t('hud.saved')));
-    e.on('autosaved', () => this.toast(game.i18n.t('hud.autosaved')));
+    e.on('saving', () => this.showSaving());
+    e.on('new-discovery', ({ name }) => this.showDiscovery(name));
+    e.on('journal-unlock', ({ kind, entry }) => this.toast(`${game.i18n.t(kind === 'people' ? 'hud.journalPeople' : 'hud.journalFacts')}${entry.name ? ' — ' + game.i18n.pick(entry.name) : ''}`));
     e.on('objective-complete', ({ objective }) => this._banner(game.i18n.t('hud.objectiveDone'), game.i18n.pick(objective.text)));
     e.on('chapter', ({ chapter }) => setTimeout(() => this._banner(game.i18n.t('hud.chapter'), game.i18n.pick(chapter.title), 'chapter'), 1800));
     e.on('journal', () => {});
@@ -100,6 +105,27 @@ export class HUD {
     this._bt = setTimeout(() => this.bannerEl.classList.remove('show'), kind === 'chapter' ? 4200 : 3000);
   }
 
+  /** Non-blocking "new discovery" card: bilingual name, fades by itself, never pauses play. */
+  showDiscovery(name) {
+    const g = this.game, [k, n, kn, f] = this.discEl.children;
+    const km = g.i18n.lang === 'km';
+    k.textContent = g.i18n.t('hud.newDiscovery');
+    n.textContent = km ? name.km : name.en;
+    kn.textContent = km ? name.en : name.km;
+    f.textContent = g.i18n.t('hud.journalUpdated');
+    this.discEl.classList.remove('show'); void this.discEl.offsetWidth;
+    this.discEl.classList.add('show');
+    clearTimeout(this._dt);
+    this._dt = setTimeout(() => this.discEl.classList.remove('show'), 4200);
+  }
+
+  showSaving() {
+    this.savingEl.lastChild.textContent = this.game.i18n.t('hud.saving');
+    this.savingEl.classList.add('show');
+    clearTimeout(this._st);
+    this._st = setTimeout(() => this.savingEl.classList.remove('show'), 1400);
+  }
+
   toast(text) {
     const t = el('div', { class: 'toast', text });
     this.toasts.append(t);
@@ -126,13 +152,29 @@ export class HUD {
     heading = (heading + 360) % 360;
     const px = (heading / 15) * 50 + 360 / 15 * 50;
     this.compass.firstChild.style.transform = `translateX(${150 - px - 25}px)`;
+    this._waypoint(heading);
     // small floating labels for nearby undiscovered places and the current objective area
     this._markers(camera);
   }
 
+  /** Waypoint pip on the compass plus its distance; cleared automatically on arrival. */
+  _waypoint(heading) {
+    const g = this.game, wp = g.waypoint, pip = this.compass.lastChild;
+    if (!wp) { pip.classList.add('hidden'); this.wpLabel.classList.add('hidden'); return; }
+    const p = g.player.position, dx = wp.x - p.x, dz = wp.z - p.z, dist = Math.hypot(dx, dz);
+    if (dist < 6) { g.setWaypoint(null); return; }
+    const bearing = (THREE.MathUtils.radToDeg(Math.atan2(-dz, -dx)) + 360) % 360;
+    const delta = ((bearing - heading + 540) % 360) - 180;
+    pip.classList.remove('hidden');
+    pip.style.left = `${150 + Math.max(-140, Math.min(140, delta * (50 / 15)))}px`;
+    this.wpLabel.classList.remove('hidden');
+    this.wpLabel.textContent = `${g.i18n.t('hud.waypoint')} · ${g.i18n.num(Math.round(dist))} m`;
+  }
+
   _markers(camera) {
     const g = this.game;
-    const w = innerWidth, h = innerHeight;
+    const ui = g.settings.values.uiScale || 1;   // #ui-root is zoomed; convert screen px to its space
+    const w = innerWidth / ui, h = innerHeight / ui;
     const seen = new Set();
     for (const it of g.interaction.items.values()) {
       if (!it.id.startsWith('disc_') && !it.id.startsWith('npc_') && !it.id.startsWith('artifact_')) continue;

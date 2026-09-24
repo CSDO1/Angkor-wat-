@@ -33,10 +33,12 @@ export class SaveManager {
       settings: g.settings.toJSON(),
       language: g.i18n.lang,
       playTime: g.playTime,
+      waypoint: g.waypoint ?? null,
     };
   }
 
   save(slot = 'manual') {
+    this.game.events.emit('saving', { slot });
     try {
       localStorage.setItem(SLOTS[slot], JSON.stringify(this.snapshot()));
       this.game.events.emit('saved', { slot });
@@ -50,6 +52,7 @@ export class SaveManager {
   /** Autosave after discoveries / chapter progress; throttled so bursts don't thrash storage. */
   autosave(reason = '') {
     const now = performance.now();
+    if (this.game.settings.values.autosave === false && reason !== 'ending') return;
     if (now - this.lastAuto < 1500) { clearTimeout(this._t); this._t = setTimeout(() => this.autosave(reason), 1600); return; }
     this.lastAuto = now;
     if (this.save('auto')) this.game.events.emit('autosaved', { reason });
@@ -58,7 +61,7 @@ export class SaveManager {
   read(slot) {
     try {
       const d = JSON.parse(localStorage.getItem(SLOTS[slot]) || 'null');
-      return d && d.version === VERSION ? d : null;
+      return d && d.version === VERSION && valid(d) ? d : null;   // a damaged save is ignored, never loaded
     } catch { return null; }
   }
 
@@ -72,4 +75,11 @@ export class SaveManager {
     const d = this.read(slot);
     return d ? { savedAt: new Date(d.savedAt), chapter: d.chapter, artifacts: d.artifacts.length } : null;
   }
+}
+
+/** Minimal shape check so a corrupted or hand-edited save can't break loading. */
+function valid(d) {
+  const arrays = ['artifacts', 'discoveries', 'reliefs', 'flags'];
+  return typeof d.savedAt === 'string' && d.player && Number.isFinite(d.player.x) && Number.isFinite(d.player.y) && Number.isFinite(d.player.z)
+    && d.objectives && Number.isInteger(d.objectives.chapter) && arrays.every((k) => Array.isArray(d[k]));
 }

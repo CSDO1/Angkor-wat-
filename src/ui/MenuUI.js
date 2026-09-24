@@ -3,6 +3,7 @@ import { DISCOVERIES, RELIEFS, SOURCES } from '../data/history.js';
 import { ARTIFACTS } from '../data/artifacts.js';
 import { NPCS, QUESTS } from '../data/npcs.js';
 import { CHAPTERS } from '../data/chapters.js';
+import { PLACE_INFO, PEOPLE, CLAIMS, EVIDENCE, isUnlocked } from '../data/journal.js';
 import { illustration } from './Illustrations.js';
 import { MapUI } from './MapUI.js';
 import { PRESET_VALUES } from '../systems/SettingsManager.js';
@@ -12,6 +13,9 @@ import { platform } from '../core/platform.js';
  * Pause menu: Continue · Map · Angkor Journal · Artifacts · Objectives · Settings · Controls ·
  * Language · Save Game · Exit. Opening it pauses the simulation but keeps the world in memory.
  */
+const clip = (s, n) => (s.length > n ? s.slice(0, n).replace(/\s+\S*$/, '') + '…' : s);
+const tagClass = (e) => (e === 'history' ? 'research' : e === 'legend' || e === 'fiction' ? 'fiction' : 'interp');
+
 const TABS = ['continue', 'map', 'journal', 'artifacts', 'objectives', 'settings', 'controls', 'language', 'save', 'exit'];
 
 export class MenuUI {
@@ -26,11 +30,11 @@ export class MenuUI {
     game.events.on('language', () => this.open && this.render());
   }
 
-  t(k) { return this.game.i18n.t(k); }
+  t(k, vars) { return this.game.i18n.t(k, vars); }
   p(o) { return this.game.i18n.pick(o); }
 
   show(tab = 'map', fromTitle = false) {
-    this.tab = tab; this.fromTitle = fromTitle;
+    this.tab = tab; this.fromTitle = fromTitle; this.detail = null;
     this.open = true;
     this.render();
     this.el.classList.remove('hidden');
@@ -55,7 +59,7 @@ export class MenuUI {
       ...TABS.filter((k) => !(this.fromTitle && ['continue', 'map', 'journal', 'artifacts', 'objectives', 'save', 'exit'].includes(k)))
         .map((k) => el('button', {
           class: this.tab === k ? 'active' : '', text: this.t('menu.' + k),
-          onclick: () => { g.audio.ui('click'); if (k === 'continue') g.closeMenu(); else { this.tab = k; this.render(); } },
+          onclick: () => { g.audio.ui('click'); if (k === 'continue') g.closeMenu(); else { this.tab = k; this.detail = null; this.render(); } },
           onmouseenter: () => g.audio.ui('hover'),
         })),
       this.fromTitle ? el('button', { text: this.t('settings.back'), onclick: () => g.closeMenu() }) : null,
@@ -71,71 +75,202 @@ export class MenuUI {
 
   // ------------------------------------------------------------------------------------ map
   tab_map(c) {
-    const g = this.game;
-    const size = Math.min(680, innerHeight - 170, innerWidth - 420);
-    const canvas = el('canvas', { width: Math.max(320, size), height: Math.max(320, size) });
-    const zoomBtn = el('button', { class: 'btn', text: this.map.zoomed ? '−' : '+', onclick: () => { this.map.zoomed = !this.map.zoomed; zoomBtn.textContent = this.map.zoomed ? '−' : '+'; } });
-    const leg = (color, key) => el('div', {}, [el('i', { style: `background:${color}` }), this.t(key)]);
+    const g = this.game, map = this.map;
+    const size = Math.max(320, Math.min(720, innerHeight - 190, innerWidth - 560));
+    const canvas = el('canvas', { width: size * 2, height: size * 2, class: 'map-canvas', 'data-k': 2, style: `width:${size}px;height:${size}px` });
+    // drag = pan, wheel = zoom, click = set / remove waypoint
+    let drag = null;
+    const frac = (e) => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.width]; };
+    canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, f: frac(e), moved: false }; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const f = frac(e);
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 4) drag.moved = true;
+      if (drag.moved) { map.pan(f[0] - drag.f[0], f[1] - drag.f[1]); drag.f = f; }
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      if (drag && !drag.moved) {
+        const [u, v] = frac(e), w = map.unproject(u, v);
+        const near = g.waypoint && Math.hypot(g.waypoint.x - w.x, g.waypoint.z - w.z) < map.view.span * 0.025;
+        g.setWaypoint(near ? null : w);
+        g.audio.ui('click');
+        clearBtn.disabled = !g.waypoint;
+      }
+      drag = null;
+    });
+    canvas.addEventListener('wheel', (e) => { e.preventDefault(); const [u, v] = frac(e); map.zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, u, v); }, { passive: false });
+    const tool = (text, title, fn) => el('button', { class: 'btn map-tool', text, title, 'aria-label': title, onclick: () => { g.audio.ui('click'); fn(); } });
+    const clearBtn = tool('✕ ' + this.t('map.clearWaypoint'), this.t('map.clearWaypoint'), () => { g.setWaypoint(null); clearBtn.disabled = true; });
+    clearBtn.disabled = !g.waypoint;
+    const leg = (color, key, round) => el('div', {}, [el('i', { style: `background:${color}` + (round ? ';border-radius:50%;transform:none' : '') }), this.t(key)]);
     c.append(el('h2', { text: this.t('map.title') }),
-      el('div', { class: 'map-wrap' }, [canvas, el('div', { class: 'legend' }, [
-        el('div', {}, [el('i', { style: 'background:#fff' }), this.t('map.you')]),
-        leg('#d9b36a', 'map.legend.place'), leg('#f0cf88;border-radius:50%;transform:none', 'map.legend.objective'),
-        leg('#7fb07a', 'map.legend.artifact'), leg('#a8d8ff;border-radius:50%;transform:none', 'map.legend.person'),
-        el('div', { style: 'margin-top:10px' }, [zoomBtn]),
-      ])]));
-    const loop = () => { this.map.draw(canvas); this.mapRaf = requestAnimationFrame(loop); };
+      el('div', { class: 'map-wrap' }, [
+        el('div', { class: 'map-stage' }, [canvas, el('div', { class: 'map-zoom' }, [
+          tool('+', this.t('map.zoomIn'), () => map.zoom(1 / 1.35)), tool('−', this.t('map.zoomOut'), () => map.zoom(1.35)), tool('◎', this.t('map.center'), () => map.centerOnPlayer()),
+        ])]),
+        el('div', { class: 'legend' }, [
+          el('div', {}, [el('i', { style: 'background:#fff' }), this.t('map.you')]),
+          leg('#f0cf88', 'map.legend.objective', true), leg('#d9b36a', 'map.legend.place'),
+          el('div', {}, [el('i', { style: 'background:transparent;border:1px solid rgba(217,179,106,.5)' }), this.t('map.legend.undiscovered')]),
+          leg('#7fb07a', 'map.legend.artifact'), leg('#a8d8ff', 'map.legend.person', true), leg('#ff9d5c', 'map.legend.waypoint', true),
+          el('div', { class: 'map-actions' }, [clearBtn]),
+          el('p', { class: 'note', text: this.t('map.help') }),
+        ]),
+      ]));
+    const loop = () => { map.draw(canvas); this.mapRaf = requestAnimationFrame(loop); };
     loop();
-    void g;
   }
 
   // -------------------------------------------------------------------------------- journal
+  /** Primary-language name, with the other language underneath (the journal is bilingual by design). */
+  names(o) {
+    const km = this.game.i18n.lang === 'km';
+    return { main: km ? o.km : o.en, other: km ? o.en : o.km };
+  }
+
   tab_journal(c) {
-    const g = this.game;
-    const tabs = [['places', 'journal.locations'], ['reliefs', 'journal.reliefs'], ['people', 'journal.people'], ['facts', 'journal.facts']];
-    c.append(el('h2', { text: this.t('menu.journal') }),
-      el('div', { class: 'tabs' }, tabs.map(([k, key]) => el('button', { class: this.journalTab === k ? 'active' : '', text: this.t(key), onclick: () => { this.journalTab = k; this.render(); } }))));
-    const grid = el('div', { class: 'grid2' });
+    if (this.detail) return this._journalDetail(c);
+    const g = this.game, pr = g.journal.progress(), num = (x) => g.i18n.num(x);
+    const tabs = [['places', 'journal.locations', pr.places], ['reliefs', 'journal.reliefs', pr.reliefs], ['people', 'journal.people', pr.people], ['facts', 'journal.facts', pr.facts]];
+    c.append(
+      el('div', { class: 'journal-head' }, [
+        el('h2', { text: this.t('menu.journal') }),
+        el('div', { class: 'progress' }, [
+          el('span', { text: this.t('journal.progress', { n: num(pr.total.n), of: num(pr.total.of) }) }),
+          el('span', { class: 'pct', text: `${num(pr.total.pct)}%` }),
+          el('div', { class: 'meter' }, [el('i', { style: `width:${pr.total.pct}%` })]),
+        ]),
+      ]),
+      el('div', { class: 'tabs' }, tabs.map(([k, key, p]) => el('button', { class: this.journalTab === k ? 'active' : '', onclick: () => { g.audio.ui('click'); this.journalTab = k; this.render(); } }, [
+        this.t(key), el('span', { class: 'count', text: `${num(p.n)}/${num(p.of)}` }),
+      ]))),
+    );
+    const grid = el('div', { class: 'grid2 journal-grid' });
     c.append(grid);
+    const open = (type, id) => { g.audio.ui('open'); this.detail = { type, id }; this.render(); this.el.querySelector('.content').scrollTop = 0; };
+
     if (this.journalTab === 'places') {
       for (const d of DISCOVERIES) {
         const found = g.discoveries.has(d.id);
-        grid.append(el('div', { class: 'entry' + (found ? '' : ' locked'), onclick: () => found && g.ui.discovery.show({
-          title: this.p(d.name), khmer: d.khmer, period: this.p(d.period), history: this.p(d.history), architecture: this.p(d.architecture), illus: d.illus, isNew: false,
-        }) }, found ? [
-          el('h4', { text: this.p(d.name) }), el('div', { class: 'k', text: d.khmer }), el('p', { text: this.p(d.history).slice(0, 130) + '…' }),
-        ] : [el('h4', { text: '— ' + this.t('journal.undiscovered') + ' —' })]));
+        grid.append(found ? this._card({ illus: d.illus, name: d.name, sub: this.p(PLACE_INFO[d.id]?.where), text: this.p(d.history), onclick: () => open('place', d.id) }) : this._locked());
       }
     } else if (this.journalTab === 'reliefs') {
       for (const r of RELIEFS) {
         const found = g.reliefsFound.has(r.id);
-        grid.append(el('div', { class: 'entry' + (found ? '' : ' locked') }, found ? [
-          el('img', { src: illustration(r.illus, 480, 180), style: 'width:100%;display:block;margin-bottom:8px;border:1px solid var(--line)' }),
-          el('h4', { text: this.p(r.name) }), el('div', { class: 'k', text: this.p(r.where) }), el('p', { text: this.p(r.text) }),
-        ] : [el('h4', { text: '— ' + this.t('journal.undiscovered') + ' —' })]));
+        grid.append(found ? this._card({ illus: r.illus, name: r.name, sub: this.p(r.where), text: this.p(r.text), onclick: () => open('relief', r.id) }) : this._locked());
       }
     } else if (this.journalTab === 'people') {
-      for (const n of NPCS) {
-        if (!g.flags.has('met_' + n.id)) continue;
-        grid.append(el('div', { class: 'entry' }, [el('h4', {}, [this.p(n.name), el('span', { class: 'tag fiction', text: this.t('journal.fictional') })]), el('p', { text: this.p(n.role) })]));
+      for (const e of PEOPLE) {
+        grid.append(isUnlocked(g, e) ? this._card({ illus: e.illus, name: e.name, sub: this.p(e.period), text: this.p(e.text), tag: e.evidence, onclick: () => open('person', e.id) }) : this._locked());
       }
-      for (const [id, q] of Object.entries(g.quests.quests)) {
-        grid.append(el('div', { class: 'entry' }, [el('h4', { text: `${q.state === 'done' ? '✓ ' : ''}${this.p(QUESTS[id].name)}` }), el('p', { text: this.p(QUESTS[id].desc) })]));
+      const met = NPCS.filter((n) => g.flags.has('met_' + n.id));
+      const quests = Object.entries(g.quests.quests);
+      if (met.length || quests.length) {
+        c.append(el('h3', { class: 'journal-sub', text: this.t('journal.metPeople') }));
+        const g2 = el('div', { class: 'grid2' });
+        for (const n of met) g2.append(el('div', { class: 'entry static' }, [el('h4', {}, [this.p(n.name), el('span', { class: 'tag fiction', text: this.t('journal.fictional') })]), el('p', { text: this.p(n.role) })]));
+        for (const [id, q] of quests) g2.append(el('div', { class: 'entry static' }, [el('h4', { text: `${q.state === 'done' ? '✓ ' : ''}${this.p(QUESTS[id].name)}` }), el('p', { text: this.p(QUESTS[id].desc) })]));
+        c.append(g2);
       }
-      if (!grid.children.length) grid.append(el('p', { text: this.t('journal.empty') }));
     } else {
-      const fact = (h, items, cls) => el('div', { class: 'entry', style: 'cursor:default' }, [el('h4', {}, [h, el('span', { class: 'tag ' + cls, text: this.t(cls === 'research' ? 'journal.researched' : 'journal.fictional') })]), el('ul', { style: 'margin:6px 0 0 16px;padding:0;color:var(--text-dim);font-size:13px;line-height:1.6' }, items.map((i) => el('li', { text: i })))]);
-      const km = g.i18n.lang === 'km';
-      grid.append(
-        fact(km ? 'ផ្អែកលើការស្រាវជ្រាវ' : 'Based on research', km
-          ? ['អត្ថបទប្រវត្តិសាស្ត្រនៅសញ្ញាស្វែងយល់', 'ឈ្មោះ សម័យកាល និងការពិពណ៌នាចម្លាក់លៀន', 'បរិបទនៃប្រភេទវត្ថុបុរាណនីមួយៗ', 'សិលាចារឹកឆ្នាំ១៦៣២ នៅព្រះពាន់', 'ស្ថាបត្យកម្មនៃគំរូ (ប្រាង្គប្រាំ រោង ផ្លូវនាគ គូទឹក)']
-          : ['History texts at the discovery markers', 'Names, periods and descriptions of the bas-reliefs', 'The context given for each artifact type', 'The 1632 inscription in the Preah Poan', 'The architecture of the model (five towers, galleries, naga causeway, moat)'], 'research'),
-        fact(km ? 'ប្រឌិតសម្រាប់ហ្គេម' : 'Invented for the game', km
-          ? ['តួអង្គទាំងអស់ (សុខា ចាន់ធី វុធី ម៉ាយ៉ា)', 'ក្រុមអភិរក្ស និងគំរូសិក្សាដែលខ្ចាត់ខ្ចាយ', 'សញ្ញាស្ទង់ និងសញ្ញាភ្លឺ', 'ល្បែងផ្គុំទាំងបួន កញ្ចក់ កូនសោថ្ម និងទ្វារ', 'របាំងនៅជណ្តើរបាកាន']
-          : ['All characters (Sokha, Chanthy, Vuthy, Maya)', 'The conservation team and its scattered study replicas', 'Survey markers and glowing markers', 'All four puzzles, the mirror, the stone keys and the door', 'The barriers on the Bakan stairways'], 'fiction'),
-        el('div', { class: 'entry', style: 'cursor:default' }, [el('h4', { text: this.t('journal.sources') }), el('ul', { style: 'margin:6px 0 0 16px;padding:0;color:var(--text-dim);font-size:13px;line-height:1.6' }, SOURCES.map((s) => el('li', { text: s })))]),
-        el('div', { class: 'entry', style: 'cursor:default' }, [el('p', { text: this.t('settings.subtitlesNote') })]),
-      );
+      for (const e of CLAIMS) {
+        if (!isUnlocked(g, e)) { grid.append(this._locked()); continue; }
+        grid.append(el('button', { class: 'entry claim-card', onclick: () => open('fact', e.id) }, [
+          el('div', { class: 'kicker' }, [this.t('journal.claim'), el('span', { class: 'tag verdict-' + e.verdict, text: this.t('journal.verdict.' + e.verdict) })]),
+          el('h4', { class: 'claim', text: `“${this.p(e.claim)}”` }),
+          el('p', { text: clip(this.p(e.fact), 150) }),
+        ]));
+      }
+      this._about(c);
     }
+  }
+
+  _card({ illus, name, sub, text, tag, onclick }) {
+    const n = this.names(name);
+    return el('button', { class: 'entry journal-card', onclick }, [
+      el('div', { class: 'thumb' }, [el('img', { src: illustration(illus, 480, 170), alt: '' }), el('span', { class: 'status', text: '✓ ' + this.t('journal.discovered') })]),
+      el('div', { class: 'body' }, [
+        el('h4', {}, [n.main, tag ? el('span', { class: 'tag ' + tagClass(tag), text: this.p(EVIDENCE[tag]) }) : null]),
+        el('div', { class: 'k', text: n.other }),
+        sub ? el('div', { class: 'where', text: sub }) : null,
+        el('p', { text: clip(text, 120) }),
+      ]),
+    ]);
+  }
+
+  _locked() {
+    return el('div', { class: 'entry journal-card locked', 'aria-disabled': 'true' }, [
+      el('div', { class: 'thumb' }, [el('span', { class: 'lock', text: '◇' })]),
+      el('div', { class: 'body' }, [el('h4', { text: '— ' + this.t('journal.undiscovered') + ' —' })]),
+    ]);
+  }
+
+  _journalDetail(c) {
+    const g = this.game, { type, id } = this.detail;
+    const back = el('button', { class: 'btn', text: this.t('journal.back'), onclick: () => { g.audio.ui('close'); this.detail = null; this.render(); } });
+    const section = (h, text) => text ? [el('h3', { text: h }), el('p', { text })] : [];
+    const meta = (rows) => el('div', { class: 'meta' }, rows.filter((r) => r[1]).flatMap(([k, v]) => [el('b', { text: k }), el('span', { text: v })]));
+    let illus, name, body = [];
+    if (type === 'place') {
+      const d = DISCOVERIES.find((x) => x.id === id), info = PLACE_INFO[id] ?? {};
+      illus = d.illus; name = d.name;
+      body = [
+        meta([[this.t('journal.period'), this.p(d.period)], [this.t('journal.location'), this.p(info.where)]]),
+        ...section(this.t('journal.history'), this.p(d.history)),
+        ...section(this.t('journal.significance'), this.p(d.architecture)),
+        this._related(info.related ?? []),
+      ];
+    } else if (type === 'relief') {
+      const r = RELIEFS.find((x) => x.id === id);
+      illus = r.illus; name = r.name;
+      body = [meta([[this.t('journal.period'), this.p({ en: 'First half of the 12th century', km: 'ពាក់កណ្តាលទីមួយនៃសតវត្សទី១២' })], [this.t('journal.location'), this.p(r.where)]]),
+        ...section(this.t('journal.relief'), this.p(r.text)), this._related(['bas_reliefs'])];
+    } else if (type === 'person') {
+      const e = PEOPLE.find((x) => x.id === id);
+      illus = e.illus; name = e.name;
+      body = [meta([[this.t('journal.period'), this.p(e.period)], ['', '']]), el('div', {}, [el('span', { class: 'tag ' + tagClass(e.evidence), text: this.p(EVIDENCE[e.evidence]) })]),
+        ...section(this.t('journal.history'), this.p(e.text)), this._related(e.unlock.filter((u) => DISCOVERIES.some((d) => d.id === u)))];
+    } else {
+      const e = CLAIMS.find((x) => x.id === id);
+      illus = null; name = { en: this.t('journal.claim'), km: this.t('journal.claim') };
+      body = [el('blockquote', { class: 'claim', text: `“${this.p(e.claim)}”` }), el('span', { class: 'tag verdict-' + e.verdict, text: this.t('journal.verdict.' + e.verdict) }),
+        ...section(this.t('journal.fact'), this.p(e.fact)), this._related(e.unlock)];
+    }
+    const n = this.names(name);
+    c.append(el('div', { class: 'journal-detail' }, [
+      back,
+      illus ? el('img', { class: 'hero', src: illustration(illus, 960, 300), alt: '' }) : null,
+      el('h2', { text: type === 'fact' ? this.t('menu.journal') + ' · ' + this.t('journal.facts') : n.main }),
+      type === 'fact' ? null : el('div', { class: 'kname', text: n.other }),
+      el('div', { class: 'ornament', style: 'width:220px;margin:8px 0 14px' }),
+      ...body,
+    ]));
+  }
+
+  _related(ids) {
+    const g = this.game;
+    const items = ids.map((id) => DISCOVERIES.find((d) => d.id === id)).filter(Boolean);
+    if (!items.length) return null;
+    return el('div', { class: 'related' }, [el('h3', { text: this.t('journal.related') }), el('div', { class: 'chips' }, items.map((d) => {
+      const found = g.discoveries.has(d.id);
+      return el('button', { class: 'chip' + (found ? '' : ' locked'), disabled: !found, text: found ? this.p(d.name) : '— ' + this.t('journal.undiscovered') + ' —',
+        onclick: () => { if (found) { g.audio.ui('click'); this.detail = { type: 'place', id: d.id }; this.render(); } } });
+    }))]);
+  }
+
+  _about(c) {
+    const g = this.game, km = g.i18n.lang === 'km';
+    const fact = (h, items, cls) => el('div', { class: 'entry static' }, [el('h4', {}, [h, el('span', { class: 'tag ' + cls, text: this.t(cls === 'research' ? 'journal.researched' : 'journal.fictional') })]), el('ul', { class: 'about-list' }, items.map((i) => el('li', { text: i })))]);
+    c.append(el('h3', { class: 'journal-sub', text: this.t('journal.about') }), el('div', { class: 'grid2' }, [
+      fact(km ? 'ផ្អែកលើការស្រាវជ្រាវ' : 'Based on research', km
+        ? ['អត្ថបទប្រវត្តិសាស្ត្រនៅសញ្ញាស្វែងយល់', 'ឈ្មោះ សម័យកាល និងការពិពណ៌នាចម្លាក់លៀន', 'មនុស្សនៃអង្គរ និងការពិត និងការប្រឌិត', 'សិលាចារឹកឆ្នាំ១៦៣២ នៅព្រះពាន់', 'ស្ថាបត្យកម្មនៃគំរូ (ប្រាង្គប្រាំ រោង ផ្លូវនាគ គូទឹក)']
+        : ['History texts at the discovery markers', 'Names, periods and descriptions of the bas-reliefs', 'People of Angkor and Fact & Fiction entries', 'The 1632 inscription in the Preah Poan', 'The architecture of the model (five towers, galleries, naga causeway, moat)'], 'research'),
+      fact(km ? 'ប្រឌិតសម្រាប់ហ្គេម' : 'Invented for the game', km
+        ? ['តួអង្គដែលអ្នកជួប (សុខា ចាន់ធី វុធី ម៉ាយ៉ា)', 'ក្រុមអភិរក្ស និងគំរូសិក្សាដែលខ្ចាត់ខ្ចាយ', 'សញ្ញាស្ទង់ និងសញ្ញាភ្លឺ', 'ល្បែងផ្គុំទាំងបួន កញ្ចក់ កូនសោថ្ម និងទ្វារ', 'របាំងនៅជណ្តើរបាកាន']
+        : ['The characters you meet (Sokha, Chanthy, Vuthy, Maya)', 'The conservation team and its scattered study replicas', 'Survey markers and glowing markers', 'All four puzzles, the mirror, the stone keys and the door', 'The barriers on the Bakan stairways'], 'fiction'),
+      el('div', { class: 'entry static' }, [el('h4', { text: this.t('journal.sources') }), el('ul', { class: 'about-list' }, SOURCES.map((x) => el('li', { text: x })))]),
+      el('div', { class: 'entry static' }, [el('p', { text: this.t('settings.subtitlesNote') })]),
+    ]));
   }
 
   // ------------------------------------------------------------------------------ artifacts
@@ -208,6 +343,16 @@ export class MenuUI {
       ]),
     ]));
     c.append(el('div', { class: 'settings-group' }, [
+      el('h3', { text: this.t('settings.display') }),
+      row('settings.fullscreen', el('input', { type: 'checkbox', checked: platform.desktop ? !!v.fullscreen : !!document.fullscreenElement, onchange: (e) => g.setFullscreen(e.target.checked) })),
+      row('settings.vsync', check('vsync')),
+      el('div', { class: 'note', text: this.t('settings.vsyncNote') }),
+      row('settings.fpsLimit', select('fpsLimit', [[0, 'settings.unlimited'], [30, '30'], [60, '60'], [120, '120']])),
+      rangeRow('settings.brightness', 'brightness', 0.6, 1.5, 0.05, pct),
+      rangeRow('settings.uiScale', 'uiScale', 0.8, 1.3, 0.05, pct),
+      row('settings.showFps', check('showFps')),
+    ]));
+    c.append(el('div', { class: 'settings-group' }, [
       el('h3', { text: this.t('settings.graphics') }),
       row('settings.preset', select('preset', [['low', 'settings.low'], ['medium', 'settings.medium'], ['high', 'settings.high'], ['ultra', 'settings.ultra'], ['custom', 'settings.custom']],
         (x) => x !== 'custom' && s.applyPreset(x))),
@@ -220,11 +365,6 @@ export class MenuUI {
       rangeRow('settings.vegetation', 'vegetation', 0.2, 1, 0.05, pct),
       rangeRow('settings.viewDistance', 'viewDistance', 600, 3200, 100, (x) => `${x} m`),
       row('settings.occlusion', check('occlusion')),
-      row('settings.vsync', check('vsync')),
-      el('div', { class: 'note', text: this.t('settings.vsyncNote') }),
-      row('settings.fpsLimit', select('fpsLimit', [[0, 'settings.unlimited'], [30, '30'], [60, '60'], [120, '120']])),
-      row('settings.fullscreen', el('input', { type: 'checkbox', checked: platform.desktop ? !!v.fullscreen : !!document.fullscreenElement, onchange: (e) => g.setFullscreen(e.target.checked) })),
-      row('settings.showFps', check('showFps')),
       row('settings.time', select('timeMode', [['story', 'settings.timeAuto'], ['sunrise', 'settings.sunrise'], ['day', 'settings.day'], ['sunset', 'settings.sunset'], ['night', 'settings.night']])),
     ]));
     c.append(el('div', { class: 'settings-group' }, [
@@ -234,10 +374,25 @@ export class MenuUI {
       rangeRow('settings.fov', 'fov', 45, 90, 1, (x) => `${x}°`),
     ]));
     c.append(el('div', { class: 'settings-group' }, [
+      el('h3', { text: this.t('settings.gameplay') }),
+      row('settings.guidance', select('guidance', [['guided', 'settings.guided'], ['free', 'settings.free']])),
+      row('settings.showObjective', check('showObjective')),
+      row('settings.hints', check('hints')),
+      row('settings.autosave', check('autosave')),
+    ]));
+    c.append(el('div', { class: 'settings-group' }, [
+      el('h3', { text: this.t('settings.accessibility') }),
+      row('settings.highContrast', check('highContrast')),
+      row('settings.reducedMotion', check('reducedMotion')),
+    ]));
+    c.append(el('div', { class: 'settings-group' }, [
       el('h3', { text: this.t('settings.audio') }),
       rangeRow('settings.master', 'master', 0, 1, 0.05, pct), rangeRow('settings.music', 'music', 0, 1, 0.05, pct),
       rangeRow('settings.ambience', 'ambience', 0, 1, 0.05, pct), rangeRow('settings.sfx', 'sfx', 0, 1, 0.05, pct), rangeRow('settings.ui', 'ui', 0, 1, 0.05, pct),
     ]));
+    c.append(el('div', { class: 'settings-actions' }, [el('button', { class: 'btn', text: this.t('settings.reset'), onclick: () => {
+      s.reset(); g.audio.ui('click'); g.ui.hud.toast(this.t('settings.resetDone')); this.render();
+    } })]));
     void PRESET_VALUES;
   }
 
@@ -246,7 +401,7 @@ export class MenuUI {
       ['controls.move', 'W A S D', this.t('controls.lstick')], ['controls.look', this.t('controls.mouse'), this.t('controls.rstick')], ['controls.run', '—', this.t('controls.lstickFull')],
       ['controls.walk', 'V', this.t('controls.lstickHalf')], ['controls.sprint', 'Shift', 'L3'], ['controls.jump', 'Space', 'A'],
       ['controls.crouch', 'C', 'B'], ['controls.interact', 'E', 'X'], ['controls.inspect', 'F', 'Y'], ['controls.zoom', `${this.t('controls.wheel')} / − =`, this.t('controls.dpad')],
-      ['controls.map', 'M / Tab', 'View'], ['controls.journal', 'J', 'RB'], ['controls.menu', 'Esc / P', 'Menu'], ['controls.time', 'T', '—'],
+      ['controls.map', 'M', 'View'], ['controls.objectives', 'Tab', '—'], ['controls.journal', 'J', 'RB'], ['controls.menu', 'Esc / P', 'Menu'], ['controls.time', 'T', '—'],
     ];
     c.append(el('h2', { text: this.t('menu.controls') }), el('table', { class: 'controls-table' }, [
       el('tr', {}, [el('th', { text: '' }), el('th', { text: this.t('controls.keyboard') }), el('th', { text: this.t('controls.gamepad') })]),

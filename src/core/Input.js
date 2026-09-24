@@ -5,7 +5,7 @@
 const KEYMAP = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   sprint: ['ShiftLeft', 'ShiftRight'], walk: ['KeyV'], jump: ['Space'], crouch: ['KeyC'],
-  interact: ['KeyE'], inspect: ['KeyF'], map: ['KeyM', 'Tab'], journal: ['KeyJ'], menu: ['Escape', 'KeyP'],
+  interact: ['KeyE'], inspect: ['KeyF'], map: ['KeyM'], objectives: ['Tab'], journal: ['KeyJ'], menu: ['Escape', 'KeyP'],
   confirm: ['Enter'], cancel: ['Escape', 'Backspace'], zoomIn: ['Equal'], zoomOut: ['Minus'], time: ['KeyT'],
 };
 // Standard gamepad mapping

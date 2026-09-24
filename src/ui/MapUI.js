@@ -14,7 +14,24 @@ const OBJECTIVE_AREAS = {
 };
 
 export class MapUI {
-  constructor(game) { this.game = game; this.zoomed = true; }
+  constructor(game) {
+    this.game = game;
+    this.view = { cx: -175, cy: 0, span: 640 };   // map centre (map-space metres) and visible width
+  }
+
+  zoom(f, u = 0.5, v = 0.5) {
+    const V = this.view, span = Math.min(1600, Math.max(120, V.span * f));
+    // keep the point under the cursor fixed
+    V.cx += (u - 0.5) * (V.span - span); V.cy += (v - 0.5) * (V.span - span);
+    V.span = span;
+  }
+
+  pan(du, dv) { this.view.cx -= du * this.view.span; this.view.cy -= dv * this.view.span; }
+
+  centerOnPlayer() { const p = this.game.player.position; this.view.cx = -p.z; this.view.cy = p.x; }
+
+  /** Map fraction (0..1 across the square canvas) -> world x/z. */
+  unproject(u, v) { const V = this.view; return { x: (v - 0.5) * V.span + V.cy, z: -((u - 0.5) * V.span + V.cx) }; }
 
   /** World (three.js) x/z -> map pixels. Map up = north (-x), map right = east (-z). */
   project(x, z, W, H, view) {
@@ -25,10 +42,12 @@ export class MapUI {
 
   draw(canvas) {
     const g = this.game, lvl = g.levelData;
-    const W = canvas.width, H = canvas.height;
+    const k = +(canvas.dataset.k || 1);   // backing-store scale for sharp lines on HiDPI screens
+    const W = canvas.width / k, H = canvas.height / k;
     const c = canvas.getContext('2d');
+    c.setTransform(k, 0, 0, k, 0, 0);
     // view: whole island, or zoomed around the temple
-    const view = this.zoomed ? { cx: -175, cy: 0, span: 640 } : { cx: -100, cy: 0, span: 1300 };
+    const view = this.view;
     const P = (x, z) => this.project(x, z, W, W, view);
     c.fillStyle = '#12100c'; c.fillRect(0, 0, W, H);
 
@@ -65,12 +84,19 @@ export class MapUI {
       if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1.5; c.stroke(); }
     };
     c.font = '12px "Source Sans 3", "Noto Sans Khmer", sans-serif';
-    // discovered places (undiscovered ones are not revealed)
+    // undiscovered places: faint outline only, no name
+    for (const d of DISCOVERIES) {
+      if (g.discoveries.has(d.id)) continue;
+      const p = B(...d.pos); const [x, y] = P(p.x, p.z);
+      diamond(x, y, 4, null, 'rgba(217,179,106,.35)');
+    }
+    const showNames = view.span < 800;
+    // discovered places
     for (const d of DISCOVERIES) {
       if (!g.discoveries.has(d.id)) continue;
       const p = B(...d.pos); const [x, y] = P(p.x, p.z);
       diamond(x, y, 5, '#d9b36a', '#1a1510');
-      if (this.zoomed || ['angkor_wat', 'west_gopura', 'central_sanctuary'].includes(d.id)) {
+      if (showNames || ['angkor_wat', 'west_gopura', 'central_sanctuary'].includes(d.id)) {
         c.fillStyle = '#efe4cc'; c.fillText(g.i18n.pick(d.name), x + 8, y + 4);
       }
     }
@@ -88,11 +114,19 @@ export class MapUI {
     }
     // objective
     const o = g.objectives.objective;
-    const area = o && !g.objectives.finished ? OBJECTIVE_AREAS[o.id] : null;
+    const area = o && !g.objectives.finished && g.settings.values.guidance !== 'free' ? OBJECTIVE_AREAS[o.id] : null;
     if (area) {
       const p = B(area[0], area[1]); const [x, y] = P(p.x, p.z);
       const t = performance.now() / 400;
       c.beginPath(); c.arc(x, y, 10 + Math.sin(t) * 3, 0, 7); c.strokeStyle = '#f0cf88'; c.lineWidth = 2; c.stroke();
+    }
+    // waypoint
+    if (g.waypoint) {
+      const [x, y] = P(g.waypoint.x, g.waypoint.z);
+      c.strokeStyle = '#ff9d5c'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 18); c.stroke();
+      c.beginPath(); c.moveTo(x, y - 18); c.lineTo(x + 11, y - 14); c.lineTo(x, y - 10); c.closePath(); c.fillStyle = '#ff9d5c'; c.fill();
+      c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill();
     }
     // player
     const pp = g.player.position; const [px, py] = P(pp.x, pp.z);

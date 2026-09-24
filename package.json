@@ -1,7 +1,7 @@
 {
   "name": "angkor-legacy-of-the-khmer-empire",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "ANGKOR: Legacy of the Khmer Empire - a third-person exploration game set at Angkor Wat",
   "scripts": {

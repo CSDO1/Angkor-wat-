@@ -142,6 +142,7 @@ export class CameraController {
       look.lerpVectors(b.look, look, k);
       if (b.t >= b.dur) this.blend = null;
     }
+    if (this.shake > 0 && this.reduceShake) this.shake = 0;
     if (this.shake > 0) { pos.x += (Math.random() - 0.5) * this.shake; pos.y += (Math.random() - 0.5) * this.shake; this.shake *= 0.9; }
     cam.position.copy(pos);
     cam.lookAt(look);

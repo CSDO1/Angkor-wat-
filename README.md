@@ -102,7 +102,7 @@ tools/blender/     export pipeline
 | Interact | E | X |
 | First-person inspection view | F | Y |
 | Zoom | wheel, − = | D-pad |
-| Map / journal / menu | M or Tab / J / Esc | View / RB / Menu |
+| Map / journal / objectives / menu | M / J / Tab / Esc | View / RB / — / Menu |
 | Change time of day (after the story, or when not in Story mode) | T | — |
 
 ## Story
@@ -124,6 +124,29 @@ tools/blender/     export pipeline
    exploring afterwards.
 
 Optional quests: Devata Survey (Vuthy), Five Towers view (Maya) and A Lost Page (Chanthy).
+
+## Angkor Journal and discovery
+
+- **Discovery.** Places are discovered when you walk into their area. A "✦ New Discovery ✦" card
+  shows the English and Khmer names without pausing play, and it never repeats. The intro marker
+  (Angkor Wat) is the one exception, because it teaches the E key.
+- **Journal tabs.** The journal (`src/data/journal.js` plus `history.js`) has four tabs: Places,
+  Bas-Reliefs, People and Fact & Fiction. It shows progress per tab and overall.
+- **Entries.** Locked cards show nothing but "— Undiscovered —". Each discovered entry opens a detail
+  page with period, location, history, significance and related discoveries.
+- **People.** Entries are labelled Historical evidence, Interpretation, Tradition or Legend.
+- **Fact & Fiction.** Each entry pairs a common claim with what the evidence says.
+- **Adding content.** New places, people or claims are data only, with no UI code.
+- **Map.** Drag to pan, use the wheel or +/− to zoom, and ◎ to centre on the player. Click to set or
+  remove a waypoint, which also shows on the compass with its distance.
+- **Modes.** New Journey asks for Guided Journey or Free Exploration. Free Exploration hides the
+  world markers and the map's objective ring. You can change the mode in Settings → Gameplay.
+- **Saving.** A "Saving…" indicator appears during saves. The autosave can be turned off. A damaged
+  save is ignored instead of breaking Continue.
+- **Settings.** Display (brightness, interface size), Gameplay (mode, objective, hints, autosave),
+  Accessibility (high contrast, reduced motion and camera shake), and Reset to defaults.
+- **Ending.** The ending shows a summary of places, reliefs, artifacts, people, facts and total
+  completion, then Continue exploring.
 
 ## Fact and fiction
 

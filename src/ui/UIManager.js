@@ -91,6 +91,29 @@ export class UIManager {
     });
   }
 
+  /** New Journey: Guided Journey or Free Exploration (also changeable later in Settings → Gameplay). */
+  chooseMode(onPick) {
+    const g = this.game, t = (k) => g.i18n.t(k);
+    const box = el('div', { class: 'screen mode-pick interactive' });
+    const close = () => { box.classList.remove('show'); setTimeout(() => box.remove(), 500); };
+    const card = (mode, key, desc) => el('button', { class: 'lang-card mode-card' + (g.settings.values.guidance === mode ? ' on' : ''), 'data-mode': mode,
+      onclick: () => { g.audio.ui('click'); close(); onPick(mode); }, onmouseenter: () => g.audio.ui('hover') }, [
+      el('span', { class: 'code', text: mode === 'guided' ? '◆' : '◇' }), el('span', { class: 'name', text: t(key) }), el('span', { class: 'sample', text: t(desc) }),
+    ]);
+    box.append(
+      el('h2', { text: t('mode.title') }),
+      el('div', { class: 'ornament', style: 'width:min(420px,70vw);margin:0 auto 22px' }),
+      el('div', { class: 'cards' }, [card('guided', 'settings.guided', 'mode.guidedDesc'), card('free', 'settings.free', 'mode.freeDesc')]),
+      el('button', { class: 'btn', style: 'margin-top:22px', text: t('mode.back'), onclick: () => { g.audio.ui('close'); close(); } }),
+    );
+    this.root.insertBefore(box, this.flashEl);
+    requestAnimationFrame(() => { box.classList.add('show'); box.querySelector('.mode-card.on')?.focus(); });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { box.querySelector('.mode-card:not(:focus)')?.focus(); e.preventDefault(); }
+    });
+  }
+
   /** EN | ខ្មែរ switch used on the title screen and in the pause menu. */
   langSwitch(onChange) {
     const g = this.game;
@@ -129,7 +152,7 @@ export class UIManager {
     if (!this._titleKeys) {
       // arrow keys / Enter move through the title buttons (gamepad-style navigation)
       this._titleKeys = (e) => {
-        if (g.mode !== 'title' || this.titleEl.classList.contains('hidden')) return;
+        if (g.mode !== 'title' || this.titleEl.classList.contains('hidden') || document.querySelector('.mode-pick')) return;
         const list = [...this.titleEl.querySelectorAll('.buttons .btn')];
         const i = list.indexOf(document.activeElement);
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -151,10 +174,20 @@ export class UIManager {
   showEnding(cb) {
     const g = this.game, t = (k) => g.i18n.t(k);
     this.endingEl.innerHTML = '';
+    const pr = g.journal.progress(), num = (x) => g.i18n.num(x);
+    const stat = (key, p) => el('div', { class: 'stat' }, [el('b', { text: `${num(p.n)} / ${num(p.of)}` }), el('span', { text: t(key) })]);
+    const left = pr.total.of - pr.total.n;
     this.endingEl.append(
+      el('div', { class: 'kicker', text: t('end.legacy') }),
       el('div', { class: 'ornament', style: 'width:240px' }),
       el('h1', { style: 'font-family:var(--serif);font-weight:400;font-size:44px;margin:10px 0', text: t('end.title') }),
       el('p', { class: 'ui-text', text: t('end.body') }),
+      el('h3', { class: 'summary-title', text: t('end.summary') }),
+      el('div', { class: 'summary ui-text' }, [
+        stat('end.places', pr.places), stat('end.reliefs', pr.reliefs), stat('end.artifacts', pr.artifacts), stat('end.people', pr.people), stat('end.facts', pr.facts),
+        el('div', { class: 'stat total' }, [el('b', { text: `${num(pr.total.pct)}%` }), el('span', { text: t('end.total') })]),
+      ]),
+      el('p', { class: 'remaining ui-text', text: left > 0 ? g.i18n.t('end.remaining', { n: num(left) }) : t('end.allFound') }),
       el('div', { class: 'credits ui-text', text: t('end.credits') }),
       el('div', { style: 'margin-top:24px' }, [el('button', { class: 'btn primary', text: t('end.continue'), onclick: () => {
         this.endingEl.classList.remove('show'); setTimeout(() => this.endingEl.classList.add('hidden'), 1000); cb?.();

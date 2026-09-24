@@ -154,6 +154,15 @@ export class Game {
     this.clock.limit = v.vsync ? v.fpsLimit : (v.fpsLimit || 0);
     this.ui.hud.fps.classList.toggle('hidden', !v.showFps);
     this.cameraController.sensitivity = v.sensitivity;
+    this.cameraController.reduceShake = v.reducedMotion;
+    this.timeOfDay.brightness = v.brightness;
+    if (this.timeOfDay.current) this.renderer.toneMappingExposure = this.timeOfDay.current.exposure * v.brightness;
+    const root = document.documentElement;
+    root.style.setProperty('--ui-scale', String(v.uiScale));
+    document.body.classList.toggle('high-contrast', !!v.highContrast);
+    document.body.classList.toggle('reduced-motion', !!v.reducedMotion);
+    document.body.classList.toggle('no-objective', !v.showObjective);
+    document.body.classList.toggle('free-mode', v.guidance === 'free');
     this.cameraController.invertY = v.invertY;
     this.audio.applyVolumes(v);
     if (this.mode !== 'loading' && v.timeMode !== 'story' && this.timeOfDay.name !== v.timeMode) this.timeOfDay.setPreset(v.timeMode, 8);
@@ -183,6 +192,12 @@ export class Game {
     const y = this.collision.groundBelow(p.x, p.y + up, p.z, up + depth);
     if (y !== null) p.y = y;
     return p;
+  }
+
+  /** Player-placed map waypoint ({x, z} in world metres) shown on the map and compass. */
+  setWaypoint(w) {
+    this.waypoint = w ? { x: w.x, z: w.z } : null;
+    this.events.emit('waypoint', this.waypoint);
   }
 
   openInspector(a, onCollect) { this.ui.inspect.open(a, onCollect); }
@@ -249,7 +264,7 @@ export class Game {
     this.cinematics.titleOrbit();
     const reveal = () => this.ui.showTitle({
       canContinue: () => !!this.save.latest(),
-      onNew: () => this.newGame(),
+      onNew: () => this.ui.chooseMode((mode) => { this.settings.set('guidance', mode); this.newGame(); }),
       onContinue: () => this.loadGame(),
       onSettings: () => { this.mode = 'title-settings'; this.ui.titleEl.classList.remove('show'); this.ui.menu.show('settings', true); },
     });
@@ -264,6 +279,8 @@ export class Game {
     this.puzzles.restore({ state: { symbols: { solved: false, seq: [] }, light: { solved: false, k: 0 }, reliefs: { solved: false, seq: [] }, door: { solved: false, placed: 0 } }, keys: [], taken: [] });
     this.quests.restore({});
     this.journal.restore([]);
+    this.discoverySystem.syncUnlocks(true);
+    this.waypoint = null;
     this.playTime = 0; this.ended = false;
   }
 
@@ -286,7 +303,7 @@ export class Game {
   }
 
   _tutorial() {
-    const hint = (k, t) => setTimeout(() => this.mode === 'play' && this.events.emit('hint', { key: k, time: 7 }), t);
+    const hint = (k, t) => setTimeout(() => this.mode === 'play' && this.settings.values.hints && this.events.emit('hint', { key: k, time: 7 }), t);
     hint('hint.move', 600); hint('hint.interact', 9000); hint('hint.jump', 20000); hint('hint.menu', 32000);
   }
 
@@ -305,6 +322,8 @@ export class Game {
     this.puzzles.restore(d.puzzles);
     this.quests.restore(d.quests);
     this.journal.restore(d.journal);
+    this.discoverySystem.syncUnlocks(true);
+    this.waypoint = d.waypoint ?? null;
     this.playTime = d.playTime ?? 0;
     this.ended = !!d.ended;
     this.player.teleport(new THREE.Vector3(d.player.x, d.player.y + 0.05, d.player.z), d.player.yaw);
@@ -348,6 +367,7 @@ export class Game {
       if (input.pressed('menu')) this.openMenu('map');
       else if (input.pressed('map')) this.openMenu('map');
       else if (input.pressed('journal')) this.openMenu('journal');
+      else if (input.pressed('objectives')) this.openMenu('objectives');
       if (input.pressed('inspect')) this.cameraController.toggleFirstPerson();
       if (input.pressed('time')) {
         if (this.ended || this.settings.values.timeMode !== 'story') {

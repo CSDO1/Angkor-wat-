@@ -16,6 +16,8 @@ const DEFAULTS = {
   ...PRESET_VALUES.high,
   vsync: true, fpsLimit: 0, fullscreen: false, showFps: false,
   sensitivity: 1, invertY: false, fov: 60,
+  brightness: 1, uiScale: 1, autosave: true, hints: true, showObjective: true, guidance: 'guided',
+  highContrast: false, reducedMotion: false,
   master: 0.85, music: 0.5, ambience: 0.8, sfx: 0.8, ui: 0.7,
   language: /^km\b/i.test(navigator.language || '') ? 'km' : 'en', languageChosen: false, timeMode: 'story',
 };
@@ -48,6 +50,15 @@ export class SettingsManager {
 
   save() {
     try { localStorage.setItem(KEY, JSON.stringify(this.values)); } catch { /* ignore */ }
+  }
+
+  /** Back to defaults for everything except language (keeps the detected graphics preset). */
+  reset() {
+    const keep = { language: this.values.language, languageChosen: true };
+    this.values = { ...DEFAULTS, ...keep, preset: guessPreset() };
+    Object.assign(this.values, PRESET_VALUES[this.values.preset]);
+    this.save();
+    this.events.emit('settings', { key: 'reset', values: this.values });
   }
 
   toJSON() { return { ...this.values }; }

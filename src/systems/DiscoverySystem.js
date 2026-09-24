@@ -1,6 +1,7 @@
 import { DISCOVERIES, RELIEFS } from '../data/history.js';
 import { B } from '../core/utils.js';
 import { makeMarker, animateMarker } from '../artifacts/ArtifactModels.js';
+import { PLACE_INFO, PEOPLE, CLAIMS, isUnlocked } from '../data/journal.js';
 
 /**
  * Khmer history discovery points (always-visible glowing markers) and the hidden bas-relief
@@ -10,6 +11,51 @@ export class DiscoverySystem {
   constructor(game) {
     this.game = game;
     this.markers = [];
+    this.unlocked = new Set();   // people / claims already announced (derived from discoveries)
+    this._scan = 0;
+    game.events.on('discovered', () => this.syncUnlocks(false));
+    game.events.on('relief-found', () => this.syncUnlocks(false));
+  }
+
+  /** Walking into a place's area discovers it without stopping play (E still opens the full entry). */
+  _autoDiscover(dt) {
+    const g = this.game;
+    if (g.mode !== 'play') return;
+    this._scan -= dt;
+    if (this._scan > 0) return;
+    this._scan = 0.2;
+    const p = g.player.position;
+    for (const { m, def, kind } of this.markers) {
+      if (kind !== 'discovery' || g.discoveries.has(def.id) || PLACE_INFO[def.id]?.auto === false) continue;
+      const dx = m.position.x - p.x, dz = m.position.z - p.z;
+      const r = def.radius + 7;
+      if (dx * dx + dz * dz < r * r && Math.abs(m.position.y - 1.6 - p.y) < 6) this.discoverQuiet(def);
+    }
+  }
+
+  discoverQuiet(d) {
+    const g = this.game;
+    if (g.discoveries.has(d.id)) return;   // never unlock twice
+    g.discoveries.add(d.id);
+    g.journal.log('place', d.id);
+    g.audio.ui('discover');
+    g.events.emit('new-discovery', { kind: 'place', name: d.name });
+    g.events.emit('discovered', { id: d.id });
+    g.save.autosave('discovery');
+  }
+
+  /** Announce People / Fact & Fiction entries unlocked by the latest discovery (silent after a load). */
+  syncUnlocks(silent) {
+    const g = this.game;
+    if (silent) this.unlocked.clear();
+    for (const [kind, list] of [['people', PEOPLE], ['facts', CLAIMS]]) {
+      for (const e of list) {
+        const key = kind + ':' + e.id;
+        if (this.unlocked.has(key) || !isUnlocked(g, e)) continue;
+        this.unlocked.add(key);
+        if (!silent) g.events.emit('journal-unlock', { kind, entry: e });
+      }
+    }
   }
 
   build() {
@@ -73,6 +119,7 @@ export class DiscoverySystem {
 
   update(dt, camPos) {
     const g = this.game;
+    this._autoDiscover(dt);
     for (const { m, def, kind } of this.markers) {
       const d = m.position.distanceTo(camPos);
       if (kind === 'relief') {

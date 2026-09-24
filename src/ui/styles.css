@@ -343,3 +343,135 @@ select { border-radius: 2px; cursor: pointer; }
 .title-screen { z-index: 1; }
 .fade, .flash, .loading, .lang-pick { z-index: 10; }
 body.lang-km .hud-artifacts .label { letter-spacing: 0; font-size: 13px; }
+
+/* ================================================================================================
+   Journal, map tools, discovery popup, saving indicator, settings, modes, summary, accessibility
+   ================================================================================================ */
+#ui-root { zoom: var(--ui-scale, 1); width: calc(100vw / var(--ui-scale, 1)); height: calc(100vh / var(--ui-scale, 1)); right: auto; bottom: auto; }
+
+/* journal header + tabs */
+.journal-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 6px; }
+.journal-head h2 { margin: 0 !important; }
+.journal-head .progress { min-width: 260px; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13px; color: var(--text-dim); }
+.journal-head .progress .pct { color: var(--gold-bright); font-variant-numeric: tabular-nums; }
+.journal-head .meter { grid-column: 1 / -1; height: 3px; background: rgba(217,179,106,.15); border-radius: 2px; overflow: hidden; }
+.journal-head .meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-bright)); transition: width .4s; }
+.tabs button { display: inline-flex; gap: 8px; align-items: center; border-radius: 2px; transition: color .15s, border-color .15s, background .15s; }
+.tabs button:hover { color: var(--text); border-color: rgba(217,179,106,.6); }
+.tabs button.active { background: rgba(217,179,106,.1); }
+.tabs .count { font-size: 11px; color: var(--sandstone-dim); font-variant-numeric: tabular-nums; }
+.tabs button.active .count { color: var(--gold); }
+
+/* uniform journal cards: same thumbnail band for found and locked entries, so rows line up */
+.journal-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); align-items: stretch; }
+.journal-card { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 3px; background: rgba(12,10,8,.55); overflow: hidden; transition: border-color .2s, transform .2s, box-shadow .2s; }
+.journal-card:not(.locked):hover, .journal-card:not(.locked):focus-visible { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.4), 0 0 0 1px rgba(240,207,136,.12); }
+.journal-card .thumb { position: relative; height: 112px; background: repeating-linear-gradient(135deg, rgba(217,179,106,.04) 0 8px, transparent 8px 16px), #15110d; border-bottom: 1px solid rgba(217,179,106,.18); display: grid; place-items: center; }
+.journal-card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .92; }
+.journal-card .thumb .status { position: absolute; left: 8px; top: 8px; font-size: 11px; padding: 2px 8px; border-radius: 2px; background: rgba(8,6,4,.75); color: var(--gold-bright); border: 1px solid rgba(217,179,106,.4); }
+.journal-card .thumb .lock { font-size: 26px; color: rgba(217,179,106,.3); }
+.journal-card .body { padding: 12px 14px 14px; }
+.journal-card h4 { margin: 0 0 2px; font-family: var(--serif); font-weight: 400; font-size: 18px; color: var(--text); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.journal-card h4 .tag { margin-left: 0; }
+.journal-card .k { font-family: var(--khmer); color: var(--gold); font-size: 13px; }
+body.lang-km .journal-card .k { font-family: var(--sans); }
+.journal-card .where { font-size: 12px; color: var(--sandstone-dim); margin-top: 4px; }
+.journal-card p { margin: 6px 0 0; font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+.journal-card.locked { cursor: default; opacity: .6; }
+.journal-card.locked h4 { color: var(--text-dim); font-size: 16px; }
+.entry.static { cursor: default; }
+.entry.static:hover { transform: none; border-color: var(--line); background: rgba(0,0,0,.2); }
+.journal-sub { font-family: var(--serif); font-weight: 400; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; font-size: 13px; margin: 28px 0 12px; }
+body.lang-km .journal-sub { letter-spacing: 0; font-size: 15px; }
+.about-list { margin: 6px 0 0 16px; padding: 0; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+.tag.interp { border-color: #c9a36a; color: #e6c996; }
+.tag.verdict-fiction { border-color: #c98a6a; color: #f0b996; }
+.tag.verdict-context { border-color: #c9a36a; color: #e6c996; }
+.claim-card { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--line); border-radius: 3px; padding: 16px 18px; background: rgba(12,10,8,.55); transition: border-color .2s, transform .2s; }
+.claim-card:hover, .claim-card:focus-visible { border-color: var(--gold); transform: translateY(-2px); }
+.claim-card .kicker { font-family: var(--serif); font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: var(--gold); display: flex; justify-content: space-between; align-items: center; }
+body.lang-km .claim-card .kicker { letter-spacing: 0; font-size: 13px; }
+.claim-card .claim { font-family: var(--serif); font-weight: 400; font-size: 18px; margin: 10px 0 6px; color: var(--parchment); }
+.claim-card p { margin: 0; font-size: 13px; color: var(--text-dim); line-height: 1.55; }
+
+/* journal detail page */
+.journal-detail { max-width: 900px; animation: rise .3s ease both; }
+.journal-detail .hero { width: 100%; height: auto; display: block; margin: 16px 0 14px; border: 1px solid var(--line); border-radius: 3px; }
+.journal-detail h2 { margin: 16px 0 2px !important; }
+.journal-detail .kname { color: var(--gold-bright); font-size: 17px; }
+.journal-detail .meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13.5px; color: var(--text-dim); margin: 4px 0 10px; }
+.journal-detail .meta b { color: var(--sandstone); font-weight: 600; }
+.journal-detail h3 { font-family: var(--serif); font-weight: 400; color: var(--gold); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin: 20px 0 6px; }
+body.lang-km .journal-detail h3 { letter-spacing: 0; font-size: 15px; }
+.journal-detail p { line-height: 1.7; font-size: 15.5px; margin: 0; max-width: 760px; }
+body.lang-km .journal-detail p { line-height: 1.95; }
+.journal-detail .claim { font-family: var(--serif); font-size: 24px; color: var(--parchment); margin: 18px 0 10px; padding-left: 16px; border-left: 2px solid var(--gold); }
+.related .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { all: unset; cursor: pointer; font-size: 13px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--gold-bright); transition: border-color .15s, background .15s; }
+.chip:hover { border-color: var(--gold); background: rgba(217,179,106,.1); }
+.chip.locked { color: var(--sandstone-dim); cursor: default; opacity: .7; }
+
+/* map */
+.map-stage { position: relative; }
+.map-canvas { cursor: crosshair; touch-action: none; border-radius: 3px; }
+.map-canvas:active { cursor: grabbing; }
+.map-zoom { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 6px; }
+.map-tool { min-width: 34px; padding: 5px 10px; font-size: 16px; background: rgba(12,10,8,.8); }
+.map-actions .map-tool { font-size: 13px; margin-top: 8px; }
+.legend { min-width: 200px; }
+.legend .note { max-width: 220px; line-height: 1.5; }
+
+/* discovery popup (non-blocking) */
+.hud-discovery { position: absolute; left: 50%; top: 13%; transform: translate(-50%, -8px); text-align: center; opacity: 0; transition: opacity .6s, transform .6s; min-width: 320px;
+  padding: 14px 34px 16px; background: radial-gradient(ellipse at center, rgba(12,9,6,.72), rgba(12,9,6,0) 75%); }
+.hud-discovery.show { opacity: 1; transform: translate(-50%, 0); }
+.hud-discovery .kicker { font-family: var(--serif); font-size: 12px; letter-spacing: .32em; text-transform: uppercase; color: var(--gold); }
+.hud-discovery .name { font-family: var(--serif); font-size: 32px; color: var(--parchment); margin-top: 6px; text-shadow: 0 2px 12px rgba(0,0,0,.9); text-transform: uppercase; letter-spacing: .12em; }
+.hud-discovery .kname { font-family: var(--khmer); font-size: 18px; color: var(--gold-bright); margin-top: 2px; text-shadow: 0 2px 8px #000; }
+.hud-discovery .foot { font-size: 12px; color: var(--text-dim); margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(217,179,106,.35); display: inline-block; letter-spacing: .08em; }
+body.lang-km .hud-discovery .kicker { letter-spacing: .05em; font-size: 15px; }
+body.lang-km .hud-discovery .name { font-family: 'Noto Serif Khmer', var(--khmer); text-transform: none; letter-spacing: 0; }
+body.lang-km .hud-discovery .kname { font-family: var(--serif); }
+
+/* saving indicator */
+.hud-saving { position: absolute; right: 26px; bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--gold-bright); opacity: 0; transition: opacity .3s; }
+.hud-saving.show { opacity: 1; }
+.hud-saving i { width: 10px; height: 10px; border: 1.5px solid var(--gold); transform: rotate(45deg); animation: spinSave 1s linear infinite; }
+@keyframes spinSave { to { transform: rotate(405deg); } }
+.hud-toasts { bottom: 40px; }
+
+/* waypoint on compass */
+.hud-compass .wp { position: absolute; top: 2px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #ff9d5c; box-shadow: 0 0 6px #ff9d5c; }
+.hud-wp { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #ffc49a; text-shadow: 0 1px 3px #000; }
+
+/* settings actions */
+.settings-actions { display: flex; gap: 10px; margin: 6px 0 30px; }
+
+/* mode picker */
+.mode-pick { align-items: center; text-align: center; background: rgba(7,6,5,.82); backdrop-filter: blur(4px); z-index: 10; transition: opacity .5s; padding: 24px 16px; }
+.mode-pick h2 { font-family: var(--serif); font-weight: 400; font-size: 26px; margin: 0 0 12px; }
+.mode-card .name { font-size: 24px !important; }
+.mode-card .sample { line-height: 1.5; }
+
+/* ending summary */
+.ending .kicker { font-family: var(--serif); letter-spacing: .35em; text-transform: uppercase; color: var(--gold); font-size: 13px; }
+.ending .summary-title { font-family: var(--serif); font-weight: 400; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; font-size: 13px; margin: 18px 0 10px; }
+.ending .summary { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 10px; max-width: 640px; margin: 0 auto; }
+.ending .stat { border: 1px solid var(--line); border-radius: 3px; padding: 10px 12px; background: rgba(8,6,4,.5); display: flex; flex-direction: column; gap: 2px; }
+.ending .stat b { font-family: var(--serif); font-weight: 400; font-size: 22px; color: var(--gold-bright); }
+.ending .stat span { font-size: 12px; color: var(--text-dim); }
+.ending .stat.total { border-color: var(--gold); }
+.ending .remaining { font-size: 13px !important; color: var(--text-dim); margin-top: 12px; }
+body.lang-km .ending .kicker, body.lang-km .ending .summary-title { letter-spacing: 0; text-transform: none; font-size: 15px; }
+
+/* gameplay / accessibility switches */
+body.no-objective .hud-objective { display: none; }
+body.free-mode .world-markers { display: none; }
+body.high-contrast { --text: #ffffff; --text-dim: #e4dccb; --line: rgba(240, 207, 136, 0.7); --glass: rgba(0, 0, 0, 0.88); }
+body.high-contrast .hud-objective, body.high-contrast .hud-artifacts, body.high-contrast .hud-hint { background: rgba(0,0,0,.82); }
+body.high-contrast .menu { background: rgba(0,0,0,.93); }
+body.high-contrast .journal-card, body.high-contrast .entry, body.high-contrast .settings-group { background: rgba(0,0,0,.8); }
+body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+.hud-discovery { background: linear-gradient(90deg, transparent, rgba(8,6,4,.72) 18%, rgba(8,6,4,.72) 82%, transparent); padding: 14px 70px 16px; }
+.hud-discovery .kicker, .hud-discovery .foot { text-shadow: 0 1px 3px #000; }
+.hud-discovery .foot { color: var(--text); }
