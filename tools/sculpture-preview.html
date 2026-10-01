@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><base href="/"><title>Khmer sculpture preview</title>
+<style>body{margin:0;background:#20251f;color:#f1e7d4;font:15px system-ui}canvas{display:block}header{position:absolute;top:18px;left:22px}button{background:#302f26;color:inherit;border:1px solid #746a56;padding:9px 14px;cursor:pointer}p{font-size:12px}</style>
+<header><strong>Angkor Wat sculptures & interiors</strong><p>Reference-inspired game models · drag to orbit · scroll to zoom</p><button id="gallery">Sculptures</button> <button id="gate">Western gate</button> <button id="court">Survey courtyard</button> <button id="stairs">Guardian stairway</button> <button id="shrine">Shrine model</button> <button id="cloister">Stone corridor</button> <button id="altar">Shrine in temple</button> <button id="naga">Naga Buddha</button> <button id="naga-temple">Naga in temple</button> <button id="grouped">Grouped carvings</button><p id="status">Loading…</p></header>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { KhmerSculptures } from '/src/environment/KhmerSculptures.js';
+import { TempleInteriors } from '/src/environment/TempleInteriors.js';
+import { AngkorEnvironment } from '/src/environment/AngkorEnvironment.js';
+import { CollisionWorld } from '/src/systems/CollisionWorld.js';
+import { QuestManager } from '/src/systems/QuestManager.js';
+import { installAtmosphereChunks } from '/src/materials/WorldShading.js';
+installAtmosphereChunks();
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x30372e);
+const renderer = new THREE.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFShadowMap; document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.05,2000);
+const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,1.35,0);
+camera.position.set(5,3.2,11);
+scene.add(new THREE.HemisphereLight(0xe7eef5,0x45432e,2));
+const light=new THREE.DirectionalLight(0xffe0ad,3);light.position.set(-4,7,6);light.castShadow=true;
+light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-10;light.shadow.camera.right=10;light.shadow.camera.top=10;light.shadow.camera.bottom=-10;
+scene.add(light,light.target);
+const gallery=new THREE.Group(); scene.add(gallery); const sculptures=new KhmerSculptures();
+for(let i=0;i<3;i++){const s=sculptures.create('devata',i);s.position.x=-2.6+i*1.38;gallery.add(s)}
+const monkey=sculptures.create('monkey');monkey.position.set(2,0,0.4);monkey.rotation.y=-0.3;gallery.add(monkey);
+const human=sculptures.create('human');human.position.set(3.9,0,0.4);human.rotation.y=-0.3;gallery.add(human);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:0x625d4c,roughness:1}));
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;gallery.add(floor);
+const studio = new THREE.Group();scene.add(studio);studio.visible=false;
+const interiors = new TempleInteriors(sculptures);studio.add(interiors.shrine());studio.add(floor.clone());
+const detailStudio = new THREE.Group();detailStudio.visible=false;scene.add(detailStudio);detailStudio.add(floor.clone());
+detailStudio.add(interiors.statue('naga',false));
+const damaged = interiors.statue('damaged',false);damaged.position.x=2;detailStudio.add(damaged);
+const windowModel = interiors.mesh(interiors.windowGeometries[0],interiors.stone);windowModel.position.set(-2,0.5,0);detailStudio.add(windowModel);
+const errors=[]; const oldError=console.error;console.error=(...args)=>{errors.push(args.map(String).join(' '));oldError(...args)};
+let env;
+window.preview={errors,ready:false};
+function view(from,target){camera.position.set(...from);controls.target.set(...target);controls.update();light.position.set(target[0]-8,target[1]+14,target[2]+8);light.target.position.set(...target)}
+const status=document.querySelector('#status');
+document.querySelector('#gallery').onclick=()=>{detailStudio.visible=false;studio.visible=false;gallery.visible=true;if(env)env.root.visible=false;view([5.7,3.2,13],[0.7,1.35,0]);status.textContent='Three devata poses · monkey guardian · human guardian'};
+document.querySelector('#shrine').onclick=()=>{detailStudio.visible=false;studio.visible=true;gallery.visible=false;if(env)env.root.visible=false;view([3.2,2.8,6],[0,1.5,0]);status.textContent='Carved shrine · Buddha · saffron sash · parasols · flower offerings'};
+document.querySelector('#naga').onclick=()=>{detailStudio.visible=true;studio.visible=false;gallery.visible=false;if(env)env.root.visible=false;view([4.8,3.6,10],[0,1.85,0]);status.textContent='Seven-headed naga Buddha · serpent coils · weathered statue · turned stone balusters'};
+async function environment(){if(!env){status.textContent='Loading temple…';env=new AngkorEnvironment(scene);await env.load();
+const collision=new CollisionWorld();collision.setGeometry(env.collisionGeometry);env.sculptures.registerCollision(collision);
+env.interiors.registerCollision(collision);
+const registered=[];
+const g={environment:env,scene,collision,snapToGround:(p,up)=>{const y=collision.groundBelow(p.x,p.y+up,p.z,60);if(y!==null)p.y=y;return p},interaction:{register:s=>registered.push(s)}};
+new QuestManager(g).build();
+window.preview.placements=env.sculptures.guardians.map(s=>({name:s.name,position:s.position.toArray(),ground:collision.groundBelow(s.position.x,s.position.y+0.05,s.position.z,60)}));
+window.preview.interactions=registered.map(s=>({id:s.id,position:s.position.toArray()}));
+window.preview.blockers=collision.blockers.size;
+window.preview.stats=env.stats();
+}detailStudio.visible=false;studio.visible=false;gallery.visible=false;env.root.visible=true;}
+document.querySelector('#gate').onclick=async()=>{await environment();view([30,5.5,458],[25,3.1,446]);status.textContent='Western entrance · relief placement'};
+document.querySelector('#court').onclick=async()=>{await environment();view([34,13.2,35],[30,11.6,44.15]);status.textContent='Second enclosure · survey relief'};
+document.querySelector('#stairs').onclick=async()=>{await environment();view([9,13.5,60],[0,11.2,44.5]);status.textContent='West stairway · paired guardians'};
+document.querySelector('#cloister').onclick=async()=>{await environment();view([0.8,5.25,79.4],[0.8,5.25,65.5]);status.textContent='Preah Poan corridor · layered doorframes · stone Buddhas'};
+document.querySelector('#altar').onclick=async()=>{await environment();view([31.5,5.4,73.1],[30,5.05,69.8]);status.textContent='Cloister shrine · open approach and passage'};
+document.querySelector('#naga-temple').onclick=async()=>{await environment();view([-15.8,5.35,73.3],[-17,5.15,69.95]);status.textContent='Naga-sheltered Buddha · cloister side bay'};
+document.querySelector('#grouped').onclick=async()=>{await environment();view([-12,11.8,39.5],[-12,11.1,44.15]);status.textContent='Three devatas together · second enclosure wall'};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);window.preview.ready=true});
+status.textContent='Three devata poses · monkey guardian · human guardian';
+</script></html>

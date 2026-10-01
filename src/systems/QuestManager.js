@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { QUESTS } from '../data/npcs.js';
 import { B } from '../core/utils.js';
 import { makeMarker, animateMarker } from '../artifacts/ArtifactModels.js';
-import { symbolCanvas } from '../ui/Illustrations.js';
 
 /** Optional side quests given by NPCs (Devata Survey, Five Towers view, A Lost Page). */
 export class QuestManager {
@@ -52,22 +51,20 @@ export class QuestManager {
     QUESTS.devata_survey.spots.forEach((p, i) => {
       const pos = B(...p);
       const ground = g.snapToGround(pos.clone(), 1.5);
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.6), new THREE.MeshStandardMaterial({
-        map: (() => { const t = new THREE.CanvasTexture(symbolCanvas('devata', 256, '#3a3024', '#8f806a')); t.colorSpace = THREE.SRGBColorSpace; return t; })(),
-        roughness: 0.95,
-      }));
+      const face = g.environment.sculptures.create('devata', i);
       // the survey panels sit on the inner gallery walls of the second enclosure (|z| = 44.8 in three.js)
       const sgn = Math.sign(ground.z);
-      face.position.copy(ground).setY(ground.y + 1.4);
-      face.position.z = sgn * 44.7;
+      face.position.copy(ground).setY(ground.y + 0.12);
+      face.position.z = sgn * 44.15;
       face.rotation.y = sgn > 0 ? Math.PI : 0;
       const circle = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.67, 40), new THREE.MeshBasicMaterial({ color: 0xf2efe6, transparent: true, opacity: 0.8 }));
-      circle.position.copy(face.position); circle.position.z -= sgn * 0.01; circle.rotation.y = face.rotation.y;
-      g.scene.add(face, circle);
+      circle.position.copy(face.position).add(new THREE.Vector3(0, 1.35, -sgn * 0.11)); circle.rotation.y = face.rotation.y;
+      g.environment.root.add(face);
+      g.scene.add(circle);
       const id = 'survey_' + i;
       this.spots.push({ id, done: false });
       g.interaction.register({
-        id, position: face.position, radius: 2.6, yTolerance: 2, verb: 'hud.photo',
+        id, position: circle.position, radius: 2.6, yTolerance: 2, verb: 'hud.photo',
         label: () => g.i18n.pick({ en: 'Devata (survey)', km: 'ទេវតា (ស្ទង់)' }),
         enabled: () => this.state('devata_survey') === 'active' && !(this.quests.devata_survey.photos ?? []).includes(i),
         onInteract: () => {

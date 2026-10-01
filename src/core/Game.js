@@ -244,6 +244,8 @@ export class Game {
     this.dialogue.build();
     this.quests.build();
     for (const lod of this.environment.lods) if (!lod.userData.isGround) this.culler.add(lod);
+    for (const lod of this.environment.sculptures.lods) this.culler.add(lod);
+    for (const item of this.environment.interiors.items) this.culler.add(item);
     this.applySettings();
     this.player.teleport(this.snapToGround(B(...START.pos), 2), START.yaw);
     this.cameraController.setYawBehind(START.yaw);

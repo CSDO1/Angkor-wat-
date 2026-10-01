@@ -24,6 +24,8 @@ export class SceneManager {
     g.levelData = env.level;
     g.collision.setGeometry(env.collisionGeometry);
     g.collision.setStairs(env.level.stairs);
+    env.sculptures.registerCollision(g.collision);
+    env.interiors.registerCollision(g.collision);
     progress(0.7, 'loading.world');
 
     g.materials = {

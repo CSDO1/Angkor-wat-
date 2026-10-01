@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createStoneMaterial, createGroundMaterial, createSimpleWorldMaterial } from '../materials/EnvironmentMaterials.js';
+import { KhmerSculptures } from './KhmerSculptures.js';
+import { TempleInteriors } from './TempleInteriors.js';
 
 const BASE = 'assets/environment/angkor_wat/';
 
@@ -73,6 +75,10 @@ export class AngkorEnvironment {
       this.root.add(lod);
     }
     this.setLodDistance(1);
+    this.sculptures = new KhmerSculptures();
+    this.sculptures.build(this.root, this.level);
+    this.interiors = new TempleInteriors(this.sculptures);
+    this.interiors.build(this.root, this.level);
     this.scene.add(this.root);
 
     const col = await collision;
@@ -83,6 +89,8 @@ export class AngkorEnvironment {
   /** Scales the distance at which chunks switch to their decimated LOD1. */
   setLodDistance(scale) {
     this.lodScale = scale;
+    this.sculptures?.setLodDistance(scale);
+    this.interiors?.setLodDistance(scale);
     for (const lod of this.lods) {
       if (lod.levels.length > 1) lod.levels[1].distance = (lod.userData.radius + 90) * scale;
     }
@@ -94,6 +102,8 @@ export class AngkorEnvironment {
       const g = lod.levels[0].object.geometry;
       tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
     }
-    return { chunks: this.lods.length, tris };
+    for (const lod of this.sculptures?.lods ?? []) tris += lod.levels[0].object.geometry.attributes.position.count / 3;
+    tris += this.interiors?.triangleCount() ?? 0;
+    return { chunks: this.lods.length + (this.sculptures?.lods.length ?? 0), tris };
   }
 }
